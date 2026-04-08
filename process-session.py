@@ -43,7 +43,7 @@ def main():
         video_spec = json.load(ij)
     logging.debug("video_spec: %s", video_spec)
 
-    concat_tmp_path = pathlib.Path(args.session_dir, "tmp_concat.mp4")
+    concat_tmp_path = pathlib.Path(args.session_dir, "{}_concat.mp4".format(args.temp_file_prefix))
     output_path = pathlib.Path(args.session_dir, "output.mp4")
     output_ytdesc_path = pathlib.Path(args.session_dir, "youtube_description.txt")
 
@@ -113,12 +113,15 @@ def main():
     #       intermediate file doesn't have frame counts in its meta data
     concat_input_info = ffmpeg.probe(concat_tmp_path)
     logging.debug("concat_input_info: %s", concat_input_info)
-    num_frames = 0
+    num_frames = int(0)
+    audio_duration = float(0.0)
     for stream in concat_input_info["streams"]:
         if stream["codec_type"] == "video":
             num_frames = int(stream["nb_frames"])
-            break;
+        if stream["codec_type"] == "audio":
+            audio_duration = float(stream["duration"])
     logging.debug("num_frames: %s", num_frames)
+    logging.debug("audio_duration: %s", audio_duration)
 
     if num_frames == 0:
         logging.error("No frames in the concat tmp video!")
@@ -147,11 +150,24 @@ def main():
         s=str(num_frames - fade_length), # start_frame
         n=str(fade_length)  # nb_frames
     )
+    fadein_audio = ffmpeg.filter_(
+        concat_input_video.audio,
+        "afade",
+        t = "in",
+        st = 0.0,
+        d = 1.5
+    )
+    fadeout_audio = ffmpeg.filter_(
+        fadein_audio,
+        "afade",
+        t = "out",
+        st = audio_duration - 1.5,
+        d = 1.5
+    )
     logging.debug("fadeout_video: %s", fadeout_video)
+    logging.debug("fadeout_audio: %s", fadeout_audio)
 
-    # FIXME: Add the audio fade in and fade out
-
-    output_video = ffmpeg.output( concat_input_video.audio,
+    output_video = ffmpeg.output( fadeout_audio,
         fadeout_video,
         str(output_path)
     ).overwrite_output()
