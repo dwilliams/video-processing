@@ -30,7 +30,7 @@ def create_title_overlay_image(session_dir, temp_file_prefix, width, height, spe
         spec["event"]["session_number"],
         spec["driver"]
     )
-    font = ImageFont.truetype("/usr/share/fonts/dejavu/DejaVuSans.ttf", 96)
+    font = ImageFont.truetype(font = "DejaVuSans-Bold.ttf", size = 96)
     draw = ImageDraw.Draw(img)
     draw.text(
         xy = (width / 2, height / 2),
@@ -107,27 +107,26 @@ def create_final_video(concat_video_path, overlay_video_path, title_img_path, ou
     title_input_image = ffmpeg.input(title_img_path)
     overlay_input_video = ffmpeg.input(overlay_video_path)
     # Draw session title on the screen
-    # FIXME: Looks like FFMPEG needs to be recompiled with a bunch of options for drawtext
-    #        https://ffmpeg.org/ffmpeg-filters.html#toc-drawtext-1
-    # FIXME: I can probably figure out some PIL or ImageMagick to generate a PNG and overlay that.
+    # NOTE: FFMPEG needed to be recompiled to use the drawtext filter, so
+    #       created an image with Pillow and overlayed that instead.
     title_overlay_video = ffmpeg.overlay(concat_input_video, title_input_image, x = 0, y = 0, enable = "between(t,3,13)")
     # Overlay the logo at the start
     overlay_video = ffmpeg.overlay(title_overlay_video, overlay_input_video, x = 0, y = 0)
     # Fade in and fade out
-    fade_length = 15
+    logo_fade_length = 15
     fadein_video = ffmpeg.filter_(
         overlay_video,
         "fade",
         t="in",  # type
         s="0",  # start_frame
-        n=str(fade_length)  # nb_frames
+        n=str(logo_fade_length)  # nb_frames
     )
     fadeout_video = ffmpeg.filter_(
         fadein_video,
         "fade",
         t="out",  # type
-        s=str(num_frames - fade_length),  # start_frame
-        n=str(fade_length)  # nb_frames
+        s=str(num_frames - logo_fade_length),  # start_frame
+        n=str(logo_fade_length)  # nb_frames
     )
     # Fade audio in and out
     fadein_audio = ffmpeg.filter_(
@@ -229,6 +228,7 @@ def main():
     for path_item in main_videos_paths:
         path_item.unlink()
     concat_tmp_path.unlink()
+    title_img_path.unlink()
 
 if __name__ == "__main__":
     main()
