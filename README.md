@@ -1,2 +1,4 @@
-# video-processing
+Video Processing
+================
+
 Some scripts to help me process videos.
